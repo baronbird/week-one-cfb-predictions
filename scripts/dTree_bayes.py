@@ -53,37 +53,113 @@ anew = metrics.accuracy_score(np.array(testLabel), machine.predict(testing.as_ma
 print ("ID3      : ", anew)
 
 # Create a Decision Tree by iteratively adding the best features (independant of each other) to the model
-def feature_selection_best_ind(training, testing):
-    # Keep a priority in order to rank the features
+def feature_selection_best_ind(train_d, test_d):
+    # Keep a priority queue in order to rank the features
     pq = []
     
     # Rank the features in order of F1 score when operating alone
-    for feature in training.columns:
+    for feature in train_d.columns:
         # Select one feature only
-        train = training[feature]
-        test = testing[feature]
+        train = train_d[feature]
+        test = test_d[feature]
         
         # Determine its F1 score
         machine = tree.DecisionTreeRegressor( criterion="mse" )
         machine.fit(train.as_matrix().reshape(-1,1), trainLabel.as_matrix() )
         F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix().reshape(-1,1)).round())
-        
-        
+
+        # Add it to the priority queue
         heapq.heappush(pq, (-F1, feature))
-    [print(thing) for thing in pq]
-    print(heapq.heappop(pq))
-    print(heapq.heappop(pq))
+    
+    # While adding a feature improves the F1 score, keep adding features
+    old = 0
+    new = .01
+    features = []
+    while new > old:
+        # Consider another feature
+        features.append(heapq.heappop(pq)[1])
+        train = train_d[features]
+        test = test_d[features]
+        
+        # Determine the F1 score of the model
+        machine = tree.DecisionTreeRegressor( criterion="mse" )
+        machine.fit(train.as_matrix(), trainLabel.as_matrix() )
+        F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix()).round())
+
+        print(old, new, F1)
+
+        # Update condition variables
+        old = new
+        new = F1
+    
+    features.pop()
+    return features
+
+def feature_selection_best_dep(train_d, test_d, features, threshold):
+    pq = []
+
+    # Rank the features in order of F1 score when operating with current model
+    for feature in train_d.columns:
+        # Don't double feature
+        if feature in features:
+            continue
+        
+        # Add a feature to the model
+        features.append(feature)
+        train = train_d[features]
+        test = test_d[features]
+        
+        # Determine its F1 score
+        machine = tree.DecisionTreeRegressor( criterion="mse" )
+        F1 = 0
+        
+        if len(features) == 1:
+            machine.fit(train.as_matrix().reshape(-1,1), trainLabel.as_matrix() )
+            F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix().reshape(-1,1)).round())
+        else:
+            machine.fit(train.as_matrix(), trainLabel.as_matrix() )
+            F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix()).round())
+        
+        # Throw that feature away
+        features.pop()
+        
+        # If the model is an improvement, push the new feature onto the pq
+        if -F1 < threshold:    
+            heapq.heappush(pq, (-F1, feature))
+    
+    # If pq is empty, adding additional features don't improve the model
+    if not pq:
+        return features
+    
+    # Take the feature that gives the best improvement and build off of that
+    chosen = heapq.heappop(pq)
+    features.append(chosen[1])
+    threshold = chosen[0]
+    
+    print(chosen, threshold)
+    
+    # Recursive call to find another feature
+    return feature_selection_best_dep(train_d, test_d, features, threshold)
+    
+    
+
 
 def createDTree(training, testing):
     feature_selection_best_ind(training, testing)
-    feature_selection_best_dep(training, testing)
-    feature_selection_worst(training, testing)
+    feature_selection_best_dep(training, testing, [], 0)
+    feature_selection_worst(training, testing, [], 0)
 
 #machine = KNeighborsClassifier(p=len(training.columns.values)*2)
 #machine = tree.DecisionTreeClassifier( criterion="entropy" )
 
-feature_selection_best_ind(training, testing)
+print(feature_selection_best_ind(training, testing))
+print("")
 
+print(feature_selection_best_dep(training, testing, [], 0))
+print("")
+
+# This is templates ignore it
+print("# This is templates ignore it")
 print(type(machine))
 print("Prediction:", machine.predict( testing.as_matrix() ).round())
 print("Real Value:", np.array(testLabel).round())
