@@ -44,15 +44,8 @@ training = training.drop('away_team', 1).drop('home_team', 1).drop("Label", 1)
 testing = testing.drop('away_team', 1).drop('home_team', 1).drop("Label", 1)
 #testing = testing.drop("year", 1)
 
-iris = load_iris()
 
 '''
-machine = tree.DecisionTreeRegressor( criterion="mse" )
-machine.fit(training.as_matrix(), trainLabel.as_matrix())
-anew = metrics.accuracy_score(np.array(testLabel), machine.predict(testing.as_matrix()).round())
-print ("ID3      : ", anew)
-'''
-
 # Create a Decision Tree by iteratively adding the best features (independant of each other) to the model
 def feature_selection_best_ind(train_d, test_d):
     # Keep a priority queue in order to rank the features
@@ -65,9 +58,12 @@ def feature_selection_best_ind(train_d, test_d):
         test = test_d[feature]
         
         # Determine its F1 score
-        machine = tree.DecisionTreeRegressor( criterion="mse" )
+        #machine = tree.DecisionTreeRegressor( criterion="mse" )
+        machine = naive_bayes.GaussianNB()
+        
         machine.fit(train.as_matrix().reshape(-1,1), trainLabel.as_matrix() )
         F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix().reshape(-1,1)).round())
+
 
         # Add it to the priority queue
         heapq.heappush(pq, (-F1, feature))
@@ -82,20 +78,23 @@ def feature_selection_best_ind(train_d, test_d):
     #while new > old:
     while pq:
         # Consider another feature
-        features.append(heapq.heappop(pq)[1])
+        chosen = heapq.heappop(pq)
+        features.append(chosen[1])
+        
+        
         train = train_d[features]
         test = test_d[features]
         
         # Uncomment a machine
         #machine = tree.DecisionTreeRegressor( criterion="mse" )
         machine = naive_bayes.GaussianNB()
-        #machine = KNeighborsClassifier(p=len(training.columns.values)*2)
-        #machine = tree.DecisionTreeClassifier( criterion="entropy" )
         
         # Determine the F1 score of the model
         machine.fit(train.as_matrix(), trainLabel.as_matrix() )
         F1 = metrics.f1_score(np.array(testLabel), machine.predict(test.as_matrix()).round())
 
+        print(len(features), chosen[1], F1)
+        
         # Grab the F1 scores for graphing
         x.append(len(features))
         y.append(F1)
@@ -118,7 +117,7 @@ def feature_selection_best_ind(train_d, test_d):
     plt.xlabel('Number of Features')
     plt.show()
     
-    features.pop()
+    #features.pop()
     return features
 
 def feature_selection_best_dep(train_d, test_d, features, threshold, x, y):
@@ -138,8 +137,7 @@ def feature_selection_best_dep(train_d, test_d, features, threshold, x, y):
         # Uncomment a machine
         #machine = tree.DecisionTreeRegressor( criterion="mse" )
         machine = naive_bayes.GaussianNB()
-        #machine = KNeighborsClassifier(p=len(training.columns.values)*2)
-        #machine = tree.DecisionTreeClassifier( criterion="entropy" )
+
         
         # Determine its F1 score
         F1 = 0
@@ -159,6 +157,7 @@ def feature_selection_best_dep(train_d, test_d, features, threshold, x, y):
         #if -F1 < threshold:    
         heapq.heappush(pq, (-F1, feature))
     
+
     # If pq is empty, adding additional features don't improve the model
     if not pq:
         return features
@@ -168,7 +167,7 @@ def feature_selection_best_dep(train_d, test_d, features, threshold, x, y):
     features.append(chosen[1])
     threshold = chosen[0]
     
-    print(chosen, threshold)
+    print(len(features), chosen)
     
     # Store number of features and F1 score
     x.append(len(features))
@@ -207,12 +206,23 @@ plt.ylabel('F1 Score')
 plt.xlabel('Number of Features')
 plt.show()
 
+
+
 '''
 # This is templates ignore it
 print("# This is templates ignore it")
-print(type(machine))
-print("Prediction:", machine.predict( testing.as_matrix() ).round())
-print("Real Value:", np.array(testLabel).round())
+#machine = tree.DecisionTreeRegressor( criterion="mse" )
+machine = naive_bayes.GaussianNB()
+
+train = training[['d_RecRank', 'd_ Opponent_Penalty_Yards_per_Penalty', 'd_ 2nd_Quarter_Time_of_Possession_Share_%', 'd_ 1st_Half_Time_of_Possession_Share_%', 'd_ Fumble_Recovery_Percentage', 'd_ Passing_Play_Percentage']]
+testing = testing[['d_RecRank', 'd_ Opponent_Penalty_Yards_per_Penalty', 'd_ 2nd_Quarter_Time_of_Possession_Share_%', 'd_ 1st_Half_Time_of_Possession_Share_%', 'd_ Fumble_Recovery_Percentage', 'd_ Passing_Play_Percentage']]
+machine.fit(train.as_matrix(), trainLabel.as_matrix() )
+ 
+print("Independent")
+
+#print(type(machine))
+#print("Prediction:", machine.predict( testing ).round())
+#print("Real Value:", np.array(testLabel).round())
 
 print("Confusion Matrix:\n", metrics.confusion_matrix( np.array(testLabel), machine.predict( testing.as_matrix() ).round()))
 print("Accuracy:", metrics.accuracy_score( np.array(testLabel), machine.predict( testing.as_matrix() ).round()))
@@ -221,6 +231,7 @@ print("Precision:", metrics.precision_score( np.array(testLabel), machine.predic
 print("Recall:", metrics.recall_score( np.array(testLabel), machine.predict( testing.as_matrix() ).round()))
 
 
+'''
 graph = Source( tree.export_graphviz(machine, out_file=None, feature_names=training.columns))
 png_bytes = graph.pipe(format='png')
 with open('dtree_pipe_proposed_model.png','wb') as f:
