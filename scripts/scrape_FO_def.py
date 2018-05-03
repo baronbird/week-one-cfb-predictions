@@ -24,11 +24,11 @@ with open("s_and_p_def.csv", "w") as f:
                         col_data = col_data[col_data.find(">")+1:col_data.find("</b")].strip()
                     if page == "ncaadef" and col_count == 3:
                         success_rt = col_data
-                    if page == "ncaadef" and col_count == 4:
+                    elif page == "ncaadef" and col_count == 4:
                         success_rank = col_data
-                    if page == "ncaadef" and col_count == 5:
+                    elif page == "ncaadef" and col_count == 5:
                         isoPPP = col_data
-                    if page == "ncaadef" and col_count == 6:
+                    elif page == "ncaadef" and col_count == 6:
                         isoRank = col_data
                     else:
                         f.write(col_data+",")
